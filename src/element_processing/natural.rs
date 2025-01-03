@@ -29,7 +29,39 @@ pub fn generate_natural(
                     args.winter,
                 );
             }
-        } else {
+        } else if natural_type == "coastline") {
+            if let ProcessedElement::Way(way) = element {
+                let mut previous_node: Option<(i32, i32)> = None;
+                let mut coastline_nodes = vec![];
+
+                // Process coastline nodes to create the water boundary
+                for node in &way.nodes {
+                    let x: i32 = node.x;
+                    let z: i32 = node.z;
+
+                    if let Some(prev) = previous_node {
+                        let bresenham_points: Vec<(i32, i32, i32)> =
+                            bresenham_line(prev.0, ground_level, prev.1, x, ground_level, z);
+                        for (bx, _, bz) in bresenham_points {
+                            editor.set_block(WATER, bx, ground_level, bz, None, None);
+                        }
+                    }
+
+                    coastline_nodes.push((x, z));
+                    previous_node = Some((x, z));
+                }
+
+                // Fill the enclosed area with water (flood fill or polygon filling)
+                let polygon_coords: Vec<(i32, i32)> = coastline_nodes.clone();
+                let filled_area: Vec<(i32, i32)> =
+                    flood_fill_area(&polygon_coords, args.timeout.as_ref());
+
+                for (x, z) in filled_area {
+                    editor.set_block(WATER, x, ground_level, z, None, None);
+                }
+            }
+        }
+        else {
             let mut previous_node: Option<(i32, i32)> = None;
             let mut corner_addup: (i32, i32, i32) = (0, 0, 0);
             let mut current_natural: Vec<(i32, i32)> = vec![];
